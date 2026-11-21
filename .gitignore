@@ -1,0 +1,10 @@
+# Nothing user-specific lives in the repo: settings, ISOs and VMs go to ~/.config/hermes-vm and ~/Virtual Machines.localized.
+# These catch anything created by hand while developing.
+*.iso
+*.iso.part
+*.pkrvars.hcl
+packer_cache/
+output/
+*.vmwarevm/
+crash.log
+.DS_Store

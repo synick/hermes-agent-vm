@@ -1,0 +1,65 @@
+name: lint
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: bash -n (syntax)
+        run: |
+          set -e
+          for f in hermes-vm.sh lib/*.sh guest/scripts/*.sh guest/router/*.sh guest/verify-guest.sh; do bash -n "$f"; done
+          sh -n host/pf-load.sh.tpl
+
+      - name: shellcheck
+        run: |
+          shellcheck -x -S warning hermes-vm.sh
+          shellcheck -S warning guest/scripts/*.sh guest/router/*.sh guest/verify-guest.sh
+          shellcheck -s sh -S warning host/pf-load.sh.tpl
+
+      - name: bash 3.2 compatibility (macOS ships bash 3.2)
+        run: |
+          if grep -nE 'declare -A|mapfile|readarray|\$\{[A-Za-z_]+(,,|\^\^)|&>>|;;&|\|&' hermes-vm.sh lib/*.sh; then
+            echo "::error::bash 4+ feature found in host-side scripts"; exit 1
+          fi
+
+      - name: Install Packer
+        run: |
+          wget -qO- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp.gpg
+          echo "deb [signed-by=/usr/share/keyrings/hashicorp.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
+            | sudo tee /etc/apt/sources.list.d/hashicorp.list >/dev/null
+          sudo apt-get update -qq && sudo apt-get install -y -qq packer
+
+      - name: packer fmt / validate (syntax)
+        working-directory: packer
+        run: |
+          packer fmt -check -diff . || echo "::warning::Run 'packer fmt packer/' and commit the result"
+          packer init .
+          packer validate -syntax-only .
+
+      - name: Templates render with no leftovers
+        run: |
+          export UPLINK_SUBNET=172.16.43.0 UPLINK_GW=172.16.43.1 VM_GW=172.16.42.1 LLM_PORT=11435 LOG_DIR=/tmp CONFIG_DIR=/tmp \
+                 PF_DAEMON_LABEL=x PF_LOADER=/x CADDY_AGENT_LABEL=y CADDY_BIN=/z
+          for t in host/*.tpl; do
+            perl -pe 's/\{\{([A-Z0-9_]+)\}\}/defined $ENV{$1} ? $ENV{$1} : die("unset $1\n")/ge' "$t" > /tmp/out
+          done
+
+      - name: nftables rulesets parse (router and Hermes)
+        run: |
+          sudo apt-get install -y -qq nftables
+          sed -e s/@VM_GW@/172.16.42.1/g -e s/@HERMES_IP@/172.16.42.10/g -e s/@UPLINK_GW@/172.16.43.1/g \
+              -e s/@LLM_PORT@/11435/g guest/router/nftables.conf.tpl > /tmp/router.nft
+          sed -e s/@VM_GW@/172.16.42.1/g -e s/@LLM_PORT@/11435/g guest/files/nftables/nftables.conf.tpl > /tmp/hermes.nft
+          sudo nft -c -f /tmp/router.nft
+          sudo nft -c -f /tmp/hermes.nft
