@@ -134,6 +134,8 @@ Without sudo it also installs a per-user LaunchAgent (`local.hermes-vm.caddy`) r
 | `./hermes-vm.sh lockdown` | Stage 3: wire Hermes behind the router, snapshot both, run `verify` |
 | `./hermes-vm.sh start` / `stop` / `status` | Run both VMs headless (router first); status of VMs, firewall and gateway. `start` then lists the models in `ollama list` and asks which one Hermes should use (Enter, or 30 s of no answer, keeps the current one; `HERMES_VM_MODEL=<name>` answers it up front) |
 | `./hermes-vm.sh model [NAME]` | Switch Hermes's model while it runs; restarts the Hermes container |
+| `./hermes-vm.sh update [TAG]` | Update the Hermes image in the VM: shows old and new versions, backs up Hermes's data (last 3 kept in `/var/backups/hermes-vm` in the VM), re-pins the image by digest, and switches back by itself if Hermes doesn't start healthy |
+| `./hermes-vm.sh update --rollback` | Go back to the image used before the last update, optionally restoring the data backup taken then |
 | `./hermes-vm.sh ssh` | SSH into Hermes as the admin user, through the router (extra args go to ssh) |
 | `./hermes-vm.sh ssh-router` | SSH into the router VM |
 | `./hermes-vm.sh setup-hermes` | Run Hermes's setup wizard in the VM, then start it |

@@ -32,6 +32,10 @@ jobs:
           if grep -nE 'declare -A|mapfile|readarray|\$\{[A-Za-z_]+(,,|\^\^)|&>>|;;&|\|&' hermes-vm.sh lib/*.sh; then
             echo "::error::bash 4+ feature found in host-side scripts"; exit 1
           fi
+          # macOS bash 3.2 mis-parses 'case' inside a heredoc held in $(...); print heredocs from a function instead.
+          if grep -nE '^[^#]*\$\(cat <<' hermes-vm.sh lib/*.sh; then
+            echo "::error::heredoc inside \$(...) breaks macOS bash 3.2"; exit 1
+          fi
 
       - name: Install Packer
         run: |

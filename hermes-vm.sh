@@ -23,6 +23,8 @@ export REPO
 . "$REPO/lib/lockdown.sh"
 # shellcheck source=lib/provision.sh
 . "$REPO/lib/provision.sh"
+# shellcheck source=lib/update.sh
+. "$REPO/lib/update.sh"
 
 # If anything fails unexpectedly, say where instead of exiting silently.
 # Only the main shell reports: a failure inside $(...) or a subshell is handled (or reported) by the code that ran
@@ -53,6 +55,8 @@ ${B}Day to day${X}
   start | stop | status   (start brings the router up before Hermes, then asks which model to use:
                            Enter keeps the current one; HERMES_VM_MODEL=<name> skips the question)
   model [NAME]   Switch Hermes's Ollama model while it runs (no NAME: pick from 'ollama list')
+  update [TAG]   Update the Hermes image in the VM (backs up its data first; switches back if it fails)
+  update --rollback   Go back to the image used before the last update
   ssh            SSH into Hermes as the admin user (through the router)
   ssh-router     SSH into the router VM
   setup-hermes   First run of Hermes (setup wizard), then start it
@@ -137,6 +141,7 @@ case "${1:-install}" in
   stop)          cmd_stop ;;
   status)        cmd_status ;;
   model)         cmd_model "${2:-}" ;;
+  update)        cmd_update "${2:-}" ;;
   ssh)           shift; cmd_ssh "$@" ;;
   ssh-router)    shift; cmd_ssh_router "$@" ;;
   setup-hermes)  cmd_setup_hermes ;;
